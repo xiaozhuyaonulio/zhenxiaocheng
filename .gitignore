@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+/attachments/
+/source_material/*
+!/source_material/raw_data/
+/analysis/computation_log.txt
+/analysis/7月参考文件解读*
+/analysis/review_july_reference.py
+/analysis/july_reference_manifest.json
+/9月分析交付.zip
