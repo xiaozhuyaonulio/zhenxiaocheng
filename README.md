@@ -1,7 +1,15 @@
 # zhenxiaocheng
 amazon广告投流
 
-## 最新：用户汇总表的完善版
+## 最新：在新版用户表上做的三块分析
+
+- [三块分析工作簿](three_part_analysis/26.9汇总表_三块分析版.xlsx)：先打开“分析入口”，分别进入SQP全部2,410词、全量广告43,846条目和共同1,802词。
+- [三块分析说明与结论](three_part_analysis/三块分析说明与结论.md)：每块的数据事实、诊断线索、具体案例和验证动作；另有Word版本。
+- [使用与复算说明](three_part_analysis/README.md)：校正版、完整CSV、指标公式、分类规则和验证结果。
+
+以最新上传的`reference/26.9汇总表_三块分析底稿.xlsx`为输入。新工作簿保留原稿5页，另提供总表与广告词简表校正版；修正CPC、广告订单/件数和小样本指数。三块重新从源数据计算，不使用旧报告或豆包处理结果。
+
+## 此前的用户汇总表完善版
 
 - [26.9汇总表完善版](user_summary_review/26.9汇总表_完善版.xlsx)：18个页签，先看结论和重点词看板；保留源数据、比例公式、价格代表ASIN及完整广告范围。
 - [完善说明与分析结论](user_summary_review/26.9汇总表_完善说明与分析结论.md)：原稿核对结果、口径修正、数据证据与待验证建议。
@@ -33,6 +41,9 @@ python analysis/analyze.py
 python analysis/build_search_matrix.py
 python analysis/build_deliverables.py
 python user_summary_review/review_user_summary.py
+python user_summary_review/build_field_formula_guide.py
+python three_part_analysis/build_analysis.py
+python three_part_analysis/verify_analysis.py
 ```
 
 7月原始参考文件位于`reference/梅森罐7月.xlsx`。

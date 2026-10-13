@@ -1,0 +1,15 @@
+{
+  "status": "passed",
+  "original_sheets_preserved": 5,
+  "total_sheets": 32,
+  "sqp_terms": 2410,
+  "ad_terms": 43846,
+  "common_terms": 1802,
+  "scope_separation": "passed",
+  "source_totals": "passed",
+  "formula_caches": "passed",
+  "CPC_orders_units": "passed",
+  "small_sample_indices": "passed",
+  "styles_namespaces_charts": "passed",
+  "source_sha256": "d646a3904ab0ff8f525aa19a373549e5cccd875a97f972018c212f9510599438"
+}
