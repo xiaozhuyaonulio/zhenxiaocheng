@@ -21,8 +21,10 @@ def norm(v):return re.sub(r'\s+',' ',str(v).strip().lower())
 def div(a,b):
     if pd.isna(a) or pd.isna(b) or not b:return np.nan
     return a/b
-def excel_ratio(n,d):
-    return f'=IFERROR(IF(AND(ISNUMBER({n}),ISNUMBER({d}),{d}>0),{n}/{d},""),"")'
+INDEX_MIN_CLICKS=100 # Display screen only; not a statistical significance threshold.
+def excel_ratio(n,d,clicks=None):
+    screen=f'ISNUMBER({clicks}),{clicks}>={INDEX_MIN_CLICKS},' if clicks else ''
+    return f'=IFERROR(IF(AND({screen}ISNUMBER({n}),ISNUMBER({d}),{d}>0),{n}/{d},""),"")'
 def clean(v):
     if v is None or (not isinstance(v,str) and pd.isna(v)):return None
     if isinstance(v,np.generic):return v.item()
@@ -148,6 +150,9 @@ for q in original_order:
         put(67,'两表都收录')
     else:put(67,'仅SQP收录；广告未匹配')
     for col,(num,den) in ratio_defs.items():put(col,div(v[num-1],v[den-1]) if v[num-1] is not None and v[den-1] is not None else None)
+    # Retain counts and absolute rates for every query, but hide unsupported multipliers.
+    if v[12]<INDEX_MIN_CLICKS:
+        put(49,None);put(50,None)
     put(68,'≥100点击，仍需核查稳定性' if v[12]>=100 else '<100点击，先观察')
     if v[12]<100 or v[48] is None or v[49] is None:diag='样本不足或基准无定义'
     elif v[48]>=1 and v[49]>=1:diag='吸引与承接达基准；结合相关性和成本测试'
@@ -209,7 +214,8 @@ notes=pd.DataFrame([
  ['代表价格','点击价取点击最多的ASIN；加购价取加购最多的ASIN；购买价取购买最多的ASIN。并列按ASIN字典序选择。没有该事件时留空；均不是合并中位数。'],
  ['价格异常','原始价格>1000的9行标记待核查；总表不使用异常代表价，原始数据和明细保留数值。'],
  ['零与缺失','已记录的0计数保留0；没匹配到广告或分母0的比例留空，不填0。'],
- ['指数','吸引力=样本CTR/市场CTR；承接=样本点击后购买比/市场点击后购买比。1倍为描述性分界，不是显著性检验。'],
+ ['指数','吸引力=样本CTR/市场CTR；承接=样本点击后购买比/市场点击后购买比。样本点击<100或基准无定义时留空。100点击只是展示筛选线，不是显著性标准；达到后仍须看曝光、点击、购买计数和绝对比率。低市场基准会放大倍数，不按指数大小判断机会优先级。'],
+ ['极小样本案例','hal：样本1曝光1点击，CTR100%；市场1,648点击/10,764,360曝光，CTR约0.01531%。原始比值约6,532倍，不能据此判断吸引力强；完善版保留计数和CTR，两个指数留空。'],
  ['结构调整','实际购买/Σ每词样本点击×同词市场购买/点击，控制已观察词结构，不控制价格、位置、人群或缺失词。'],
  ['筛选线','零单≥20点击且花费≥20；高成本≥5单、花费≥50且ACOS>40%；增长≥10单且ACOS≤25%。均为待复核规则，不是目标或盈亏线。'],
  ['复算','计数和分组是本次输入版本的计算快照；总表比例为Excel公式且有缓存。原始页修改后，运行review_user_summary.py刷新快照。'],
@@ -351,6 +357,10 @@ mason jars样本CTR0.56%低于市场1.29%，购买/点击3.87%低于12.42%，先
 
 先确定分析问题，再选指标：看点击吸引用曝光CTR；看点击后承接用加购/点击、购买/点击；看竞争地位用曝光、点击、加购、购买份额；看广告成本用CPC、ACOS、订单CVR和SKU销售构成。查询口径指标和曝光/点击口径指标分别保留，但不直接比较百分比大小。
 
+两个指数仅作同词相对比率的辅助描述，不作为机会排名。样本点击少于100时，总表和看板均留空；100点击是工作筛选线，不是统计显著性或稳定性保证。市场基准很低时，即使达到筛选线，倍数仍可能很大，须一起看原始计数、绝对比率及百分点差。购买承接还须核查购买计数；不能把零购买自动判为无承接能力。
+
+例如hal只有1次样本曝光、1次点击，CTR为100%；市场为1,648次点击/10,764,360次曝光，CTR约0.01531%，原始比值约6,532倍。这不能证明吸引力强。再出现1次曝光而没有点击，样本CTR就会降到50%。当前保留原始计数与CTR，隐藏小样本倍数，不修改原始数据或截断极端值。
+
 每条结论按“事实→可能原因→验证动作”写。例如：cold brew pitcher有1,181点击69购买，同词购买率低于市场；可能与功能意图、价格、页面或流量位置有关；先检查各ASIN、实际投放商品和页面资料，再做小范围单变量测试。
 
 下一步最有价值的数据是可靠的推广ASIN/SKU映射、各商品广告前贡献利润率、库存与断货记录、价格优惠、评论变化、日粒度广告报告及前后月份同口径数据。补这些数据后，再区分成本问题、商品承接问题和可增长机会。
@@ -371,8 +381,8 @@ boardcols=['搜索词','市场搜索查询量','收录ASIN数','样本ASIN曝光
 board=total[boardcols].sort_values('样本ASIN点击合计',ascending=False)
 
 formula_info=pd.DataFrame([{'完善版列':get_column_letter(col),'指标':headers[col-1],
-    'Excel第2行公式':excel_ratio(get_column_letter(num)+'2',get_column_letter(den)+'2'),
-    '分母0或缺失':'留空，指标无定义'} for col,(num,den) in ratio_defs.items()])
+    'Excel第2行公式':excel_ratio(get_column_letter(num)+'2',get_column_letter(den)+'2','M2' if col in (49,50) else None),
+    '留空条件':'样本点击<100或基准无定义；100为展示筛选线，不保证稳定' if col in (49,50) else '输入非数字或分母≤0；指标无定义'} for col,(num,den) in ratio_defs.items()])
 
 # Stream the two large source sheets instead of loading a million-cell editable workbook.
 wb=openpyxl.Workbook(write_only=True)
@@ -403,7 +413,7 @@ def add_sheet(name,frame,raw=False,formulas=False):
             value=clean(value)
             if formulas and j in ratio_defs:
                 num,den=ratio_defs[j]
-                formula=excel_ratio(get_column_letter(num)+str(rownum),get_column_letter(den)+str(rownum))
+                formula=excel_ratio(get_column_letter(num)+str(rownum),get_column_letter(den)+str(rownum),'M'+str(rownum) if j in (49,50) else None)
                 c=WriteOnlyCell(ws,formula);formula_cache[f'{get_column_letter(j)}{rownum}']=value
             elif raw and not isinstance(value,str):
                 cells.append(value);continue
@@ -521,9 +531,15 @@ doc.save(OUT/'26.9汇总表_完善说明与分析结论.docx')
 
 26.9汇总表_完善说明与分析结论.md / .docx解释修正、数据证据和下一步。CSV保留全部广告词、仅广告条目和组合词，不因看板筛选而丢掉低点击记录。
 
+字段计算公式说明.xlsx / .md逐列列出看板25列与总表71列的计算、汇总、取数或不计算规则。跨表按搜索词匹配。
+
+两个指数在样本点击<100或基准无定义时留空。100点击仅是展示筛选线，不是显著性检验；达到后仍需核查曝光、点击、购买计数和绝对比率。市场基准很低会放大倍数，不以指数大小排列机会；hal的一次点击不能支持吸引力判断。
+
 总表的比例使用简单Excel公式并写入缓存；分组计数是输入版本快照。修改原始页后运行脚本刷新计数；只修改计数时比例正常重算。
 
 项目根目录复算：python user_summary_review/review_user_summary.py。依赖见根目录requirements.txt。
+
+更新字段公式指南：python user_summary_review/build_field_formula_guide.py。若直接在Excel汇总广告源表，先按指南统一客户词空格。
 
 自然量暂不计算；样本不是完整品牌；价格为各环节代表ASIN中位数；广告订单与件数分开；筛选线不是目标ACOS；诊断不是因果结论。
 ''')

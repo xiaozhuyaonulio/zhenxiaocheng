@@ -19,7 +19,9 @@ for node in source.body:
 assert len(ratios)==28
 def lookup(col):
     return f'=XLOOKUP($A2,\'总表\'!$A$2:$A$2411,\'总表\'!${col}$2:${col}$2411,"")'
-def frac(n,d):return f'=IFERROR(IF(AND(ISNUMBER({n}),ISNUMBER({d}),{d}>0),{n}/{d},""),"")'
+def frac(n,d,clicks=None):
+    screen=f'ISNUMBER({clicks}),{clicks}>=100,' if clicks else ''
+    return f'=IFERROR(IF(AND({screen}ISNUMBER({n}),ISNUMBER({d}),{d}>0),{n}/{d},""),"")'
 marketbuy='XLOOKUP($A2,\'总表\'!$A$2:$A$2411,\'总表\'!$AH$2:$AH$2411,"")'
 adsales='XLOOKUP($A2,\'总表\'!$A$2:$A$2411,\'总表\'!$BB$2:$BB$2411,"")'
 board_defs={
@@ -36,8 +38,8 @@ board_defs={
  11:('比率计算/取数','同词市场加购÷市场点击',lookup('X'),'从总表取已算指标。'),
  12:('比率计算','样本购买÷样本点击',frac('G2','E2'),'购买计数/点击。'),
  13:('比率计算/取数','同词市场购买÷市场点击',lookup('AK'),'从总表取已算指标。'),
- 14:('指数计算','样本CTR÷市场CTR',frac('H2','I2'),'普通小数或倍数，1倍为描述性基准。'),
- 15:('指数计算','样本点击后购买比÷市场点击后购买比',frac('L2','M2'),'不是显著性检验。'),
+ 14:('有展示筛选的指数','样本CTR÷市场CTR；样本点击<100时留空',frac('H2','I2','E2'),'倍数仅辅助描述；100点击是展示筛选线，不保证稳定。低市场CTR会放大倍数，须看曝光、点击和绝对率。'),
+ 15:('有展示筛选的指数','样本点击后购买比÷市场点击后购买比；样本点击<100时留空',frac('L2','M2','E2'),'不是显著性检验；仍须核查购买计数和绝对率，不能按倍数排名。'),
  16:('比率计算','样本购买÷同词市场购买',frac('G2',marketbuy),'不能除以市场查询量；该值在总表AM。'),
  17:('计数汇总','Σ同词广告点击',lookup('AZ'),'广告源表M列；按归一化客户词。'),
  18:('计数汇总','Σ同词广告订单',lookup('BF'),'广告源表T列；U列是件数。'),
@@ -72,8 +74,11 @@ for i,h in enumerate(totalheads,1):
     col=get_column_letter(i);typ='';math='';formula='';note=''
     if i in ratios:
         n,d=ratios[i];typ='比率或指数计算';math=f'{totalheads[n-1]}÷{totalheads[d-1]}'
-        formula=frac(get_column_letter(n)+'2',get_column_letter(d)+'2')
+        formula=frac(get_column_letter(n)+'2',get_column_letter(d)+'2','M2' if i in (49,50) else None)
         note='任一输入非数字、分母0或缺失均留空；不要额外乘100，百分比由单元格格式显示。'
+        if i in (49,50):
+            typ='有展示筛选的指数';math+='；样本点击<100时留空'
+            note='普通小数/倍数；100点击是展示筛选线，不是显著性或稳定性保证。低市场基准放大比值，先看原始计数和绝对率，不按指数大小排序。'
     elif i in owncols:
         typ='计数汇总';math='按同一搜索词，对各已导出ASIN的原始计数求和'
         formula=source_sum('原始SQP合并',owncols[i],sqkey)
@@ -126,6 +131,7 @@ notes=pd.DataFrame([
  ['数值与格式','CTR、CVR、份额、加购比、购买比、ACOS和收入占比按百分比显示；指数、ROAS按普通小数/倍数，CPC按金额。公式不额外乘100。'],
  ['原始系统百分数字段','原始SQP的32.61代表32.61%；本指南用直接计数相除得到0.3261后设置百分比格式，不把原始32.61再次当0.3261格式化。'],
  ['零与空白','计数有记录且为0，保留0；任一输入不是数字或比例分母为0，留空。指数上游为空也继续为空，空白不是0%。'],
+ ['指数展示筛选','看板N/O与总表AW/AX仅在样本点击≥100且上游有效时显示。少于100时保留计数与绝对率，指数留空；100不是统计显著性门槛。市场基准极低仍须核查，不用倍数排名。'],
  ['市场去重','同词市场搜索、曝光、点击、加购、购买值一致后只取一次；ASIN计数可按已收录ASIN求和。'],
  ['价格和排名','市场/ASIN中位数取原始值；跨ASIN整体中位数无法精确还原，不计算。ASIN排名不平均成品牌排名。'],
  ['自然量','理论上同范围完整总量减广告量可分解；本次范围与购买归因未对齐，不计算自然量、广告占比。'],
