@@ -21,6 +21,8 @@ def norm(v):return re.sub(r'\s+',' ',str(v).strip().lower())
 def div(a,b):
     if pd.isna(a) or pd.isna(b) or not b:return np.nan
     return a/b
+def excel_ratio(n,d):
+    return f'=IFERROR(IF(AND(ISNUMBER({n}),ISNUMBER({d}),{d}>0),{n}/{d},""),"")'
 def clean(v):
     if v is None or (not isinstance(v,str) and pd.isna(v)):return None
     if isinstance(v,np.generic):return v.item()
@@ -369,7 +371,7 @@ boardcols=['搜索词','市场搜索查询量','收录ASIN数','样本ASIN曝光
 board=total[boardcols].sort_values('样本ASIN点击合计',ascending=False)
 
 formula_info=pd.DataFrame([{'完善版列':get_column_letter(col),'指标':headers[col-1],
-    'Excel第2行公式':f'=IF({get_column_letter(den)}2>0,{get_column_letter(num)}2/{get_column_letter(den)}2,"")',
+    'Excel第2行公式':excel_ratio(get_column_letter(num)+'2',get_column_letter(den)+'2'),
     '分母0或缺失':'留空，指标无定义'} for col,(num,den) in ratio_defs.items()])
 
 # Stream the two large source sheets instead of loading a million-cell editable workbook.
@@ -401,7 +403,7 @@ def add_sheet(name,frame,raw=False,formulas=False):
             value=clean(value)
             if formulas and j in ratio_defs:
                 num,den=ratio_defs[j]
-                formula=f'=IF({get_column_letter(den)}{rownum}>0,{get_column_letter(num)}{rownum}/{get_column_letter(den)}{rownum},"")'
+                formula=excel_ratio(get_column_letter(num)+str(rownum),get_column_letter(den)+str(rownum))
                 c=WriteOnlyCell(ws,formula);formula_cache[f'{get_column_letter(j)}{rownum}']=value
             elif raw and not isinstance(value,str):
                 cells.append(value);continue
